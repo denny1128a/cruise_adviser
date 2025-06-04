@@ -4,15 +4,17 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
-const PORT = process.env.PORT || 3000; // 本地開發用 3000，Render 會自動提供 PORT
+const PORT = process.env.PORT || 3000; // 本地用 3000，Render 自動提供 PORT
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
 const dbPath = './itineraries.db';
 
 app.use(cors());
 app.use(express.json({ type: 'application/json', charset: 'utf-8' }));
+
+// 加入首頁路由，避免 Not Found
+app.get('/', (req, res) => {
+  res.send('🚢 Cruise Adviser API 已部署成功！請使用 POST /ask 進行查詢。');
+});
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -44,7 +46,6 @@ app.post('/ask', async (req, res) => {
       return res.status(500).json({ error: '伺服器缺少 OpenRouter API Key 配置' });
     }
 
-    // 移除 cruise_facts JOIN，簡化查詢
     let query = `
       SELECT DISTINCT
         i.itinerary_name,
@@ -84,7 +85,7 @@ app.post('/ask', async (req, res) => {
         ${rows
           .map(
             (row, index) =>
-              `${index + 1}. ${row.itinerary_name} (評分: ${row.rating}, 價格: NT$${row.min_price_ntd}, 氣溫: ${row.average_temperature}°C)`,
+              `${index + 1}. ${row.itinerary_name} (評分: ${row.rating}, 價格: NT$${row.min_price_ntd}, 氣溫: ${row.average_temperature}°C)`
           )
           .join('\n')}
         請根據偏好推薦最適合的行程，並簡要說明原因（50-100 字）。
@@ -103,7 +104,7 @@ app.post('/ask', async (req, res) => {
               Authorization: `Bearer ${apiKey}`,
               'Content-Type': 'application/json',
             },
-          },
+          }
         );
 
         const aiRecommendation = aiResponse.data.choices[0].message.content.trim();
@@ -143,7 +144,6 @@ app.post('/export', async (req, res) => {
       return res.status(400).json({ error: '請提供有效月份 (1-12)' });
     }
 
-    // 移除 cruise_facts JOIN
     const query = `
       SELECT DISTINCT
         i.itinerary_name,
@@ -212,10 +212,16 @@ app.get('/health', (req, res) => {
       console.error('資料庫健康檢查失敗:', err.message);
       return res.status(500).json({ status: 'error', message: '資料庫連線失敗' });
     }
-    res.json({ status: 'ok', "message": '伺服器與資料庫正常' });
+    res.json({ status: 'ok', message: '伺服器與資料庫正常' });
   });
 });
 
+// ✅ 只保留這個 listen（不要再寫一個）
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+// 關閉資料庫用
 process.on('SIGTERM', () => {
   console.log('關閉資料庫連線');
   db.close();
