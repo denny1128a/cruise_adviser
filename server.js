@@ -4,8 +4,11 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
-const port = 3000;
+const PORT = process.env.PORT || 3000; // 本地開發用 3000，Render 會自動提供 PORT
 
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 const dbPath = './itineraries.db';
 
 app.use(cors());
@@ -211,10 +214,6 @@ app.get('/health', (req, res) => {
     }
     res.json({ status: 'ok', "message": '伺服器與資料庫正常' });
   });
-});
-
-app.listen(port, () => {
-  console.log(`伺服器運行於 http://localhost:${port}`);
 });
 
 process.on('SIGTERM', () => {
